@@ -1,0 +1,74 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    name: Build Site
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Prepare site files
+        run: |
+          # Create public directory
+          mkdir -p public
+          
+          # Copy website bundle to public folder
+          if [ -d "website-bundle (2)" ]; then
+            cp -r "website-bundle (2)"/* public/
+            echo "✅ Website bundle copied successfully"
+          else
+            echo "⚠️ Warning: website-bundle (2) directory not found"
+          fi
+          
+          # Fix homepage - rename index-bundle.html to index.html if needed
+          if [ -f "public/index-bundle.html" ]; then
+            mv "public/index-bundle.html" "public/index.html"
+            echo "✅ Homepage file renamed to index.html"
+          fi
+          
+          # List contents of public directory for debugging
+          echo "📦 Public directory contents:"
+          ls -la public/
+
+      - name: Upload pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+
+  deploy:
+    name: Deploy to Pages
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Deployment Summary
+        run: |
+          echo "🎉 Deployment successful!"
+          echo "📍 Your site is available at: ${{ steps.deployment.outputs.page_url }}"
